@@ -1,18 +1,309 @@
-from flask import Flask, jsonify,request
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+
+from extension import db
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root@localhost/inventory_management'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 db = SQLAlchemy(app)
 
+class Users(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    mobile_number = db.Column(db.Integer, unique=True, nullable=False)
+    password = db.Column(db.String(120), nullable=True)
+    role = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(20), nullable=False)
+    vendorId = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'mobileNumber': self.mobile_number,
+            'role': self.role,
+            'status': self.status,
+            'vendorId': self.vendorId
+        }
+    
+
+class Vendors(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    business_name = db.Column(db.String(80), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    mobile_number = db.Column(db.Integer, unique=True, nullable=False)
+    address_id = db.Column(db.Integer, db.ForeignKey('address.id'), nullable=False)
+
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'business_name': self.business_name,
+            'email': self.email,
+            'mobileNumber': self.mobile_number,
+            'address': self.address
+        }
+    
+class Address(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
+    address_line1 = db.Column(db.String(200), nullable=False)
+    address_line2 = db.Column(db.String(200), nullable=True)
+    address_line3 = db.Column(db.String(200), nullable=True)
+    landmark = db.Column(db.String(200), nullable=True)
+    city = db.Column(db.String(100), nullable=False)
+    state = db.Column(db.String(100), nullable=False)
+    postal_code = db.Column(db.String(20), nullable=False)
+    country = db.Column(db.String(100), nullable=False)
+    lat_lang = db.Column(db.String(100), nullable=True)
+    google_map_address = db.Column(db.String, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'vendor_id': self.vendor_id,
+            'address_line1': self.address_line1,
+            'address_line2': self.address_line2,
+            'address_line3': self.address_line3,
+            'landmark': self.landmark,
+            'city': self.city,
+            'state': self.state,
+            'postal_code': self.postal_code,
+            'country': self.country,
+            'lat_lang': self.lat_lang,
+            'google_map_address': self.google_map_address
+        }
+    
+class MediaFiles(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
+    file_name = db.Column(db.String(200), nullable=False)
+    file_url = db.Column(db.String(500), nullable=False)
+    file_title = db.Column(db.String(100),nullable=True)
+    file_type = db.Column(db.String(100),nullable= False)
+    alt_text = db.Column(db.String(200), nullable=True)
+    entity_type = db.Column(db.String(50), nullable=False)
+    entity_id = db.Column(db.Integer, nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'vendor_id': self.vendor_id,
+            'file_name': self.file_name,
+            'file_url': self.file_url,
+            'file_title': self.file_title,
+            'file_type': self.file_type,
+            'alt_text': self.alt_text,
+            'entity_type': self.entity_type,
+            'entity_id': self.entity_id
+        }
+
+class Product(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500), nullable=True)
+    price = db.Column(db.Float, nullable=False)
+    sku_id = db.Column(db.String(100), unique=True, nullable=False)
+    barcode = db.Column(db.String(100), unique=True, nullable=True)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+    product_type = db.Column(db.String(50), nullable=False)  # 'simple', 'variant', 'bundle'
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'parent_id': self.parent_id,
+            'name': self.name,
+            'description': self.description,
+            'sku_id': self.sku_id,
+            'barcode': self.barcode,
+            'price': self.price,
+            'vendor_id': self.vendor_id,
+            'brand_id': self.brand_id,
+            'product_type': self.product_type
+        }
+
+
+
+class PriceType(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+    
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'vendor_id': self.vendor_id
+
+        }
+class Currency(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    code = db.Column(db.String(10), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    value = db.Column(db.Float, nullable=False)
+    charges = db.Column(db.Float, nullable=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'code': self.code,
+            'name': self.name,
+            'value': self.value,
+            'charges': self.charges
+        }
+
+class ProductPrice(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    price_type_id = db.Column(db.Integer, db.ForeignKey('price_type.id'), nullable=False)
+    price = db.Column(db.Float, nullable=False)
+    currency_id = db.Column(db.Integer, db.ForeignKey('currency.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'price_type_id': self.price_type_id,
+            'price': self.price
+        }
+    
+class Language(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False)
+    code = db.Column(db.String(10), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'code': self.code,
+            'vendor_id': self.vendor_id
+        }   
+    
+class ProductTranslation(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    language_id = db.Column(db.Integer, db.ForeignKey('language.id'), nullable=False)
+    textTitle = db.Column(db.String(100), nullable=False)
+    text = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'language_id': self.language_id,
+            'textTitle': self.textTitle,
+            'text': self.text,
+            'description': self.description,
+            'vendor_id': self.vendor_id
+        }
+    
+class Brands(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'vendor_id': self.vendor_id
+        }
+    
+class Categories(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False)
+    description = db.Column(db.String(500), nullable=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=True)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'parent_id': self.parent_id if self.parent_id else None,
+            'vendor_id': self.vendor_id
+        }
+    
+class ProductCategory(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('categories.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'category_id': self.category_id
+        }
+    
+class Distributor(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    mobile_number = db.Column(db.Integer, unique=True, nullable=False)
+    address_id = db.Column(db.Integer, db.ForeignKey('address.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'mobile_number': self.mobile_number,
+            'address_id': self.address_id,
+            'vendor_id': self.vendor_id
+        }
+    
+class ProductDistributor(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    distributor_id = db.Column(db.Integer, db.ForeignKey('distributor.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'distributor_id': self.distributor_id,
+            'vendor_id': self.vendor_id
+        }
+
+class BrandDistributor(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=False)
+    distributor_id = db.Column(db.Integer, db.ForeignKey('distributor.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'brand_id': self.brand_id,
+            'distributor_id': self.distributor_id
+        }
+    
 class VendorDistributor(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
     distributor_id = db.Column(db.Integer, db.ForeignKey('distributor.id'), nullable=False)
-    createdAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
-    UpdatedAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    DeletedAt = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
@@ -21,55 +312,6 @@ class VendorDistributor(db.Model):
             'distributor_id': self.distributor_id
         }
     
-
-@app.route('/add_Vendor',methods=['POST'])
-def add_vendor():
-    data = request.get_json()
-    new_vendor = Vendors(
-        business_name=data['business_name'],
-        email=data['email'],
-        mobile_number=data['mobile_number'],
-        address_id=data['address_id']
-    )
-    db.session.add(new_vendor)
-    db.session.commit()
-    return jsonify({'message': 'Vendor added successfully', 'vendor': new_vendor.to_dict()})
-
-@app.route('/get_All_Vendor/',methods=['GET'])
-def get_all_vendors():
-    vendors = Vendors.query.all()
-    return jsonify({'vendors': [vendor.to_dict() for vendor in vendors]})
-
-@app.route('/get_Vendor/<int:vendor_id>',methods=['GET'])
-def get_vendor(vendor_id):
-    vendor = Vendors.query.get(vendor_id)
-    if vendor:
-        return jsonify({'vendor': vendor.to_dict()})
-    else:
-        return jsonify({'message': 'Vendor not found'})
-    
-@app.route('/update_Vendor/<int:vendor_id>', methods=['PUT'])
-def update_vendor(vendor_id):
-    vendor = Vendors.query.get(vendor_id)
-    if not vendor:
-        return jsonify({'message': 'Vendor not found'}), 404
-
-    data = request.get_json()
-    vendor.business_name = data.get('business_name')
-    vendor.email = data.get('email')
-    vendor.mobile_number = data.get('mobile_number')
-
-    db.session.commit()
-    return jsonify({'message': 'Vendor updated successfully', 'vendor': vendor.to_dict()})
-@app.route('/delete/',methods=['PUT'])
-def Delete_Vendor(vendor_id):
-    vendor = Vendors.query.get(vendor_id)
-    if not vendor:
-        return jsonify({'message': 'Vendor not found'})
-    db.session.delete(vendor)
-    db.session.commit()
-    return jsonify({'message': 'Vendor deleted successfully'})
-
 class Hubs(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(100), nullable=False)
@@ -78,9 +320,6 @@ class Hubs(db.Model):
     address_id = db.Column(db.Integer, db.ForeignKey('address.id'), nullable=False)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey('hubs.id'), nullable=True)
-    createdAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
-    UpdatedAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    DeletedAt = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
@@ -93,60 +332,6 @@ class Hubs(db.Model):
             'parent_id': self.parent_id if self.parent_id else None
         }
     
-@app.route('/add_Hub',methods=['POST'])
-def add_hub():
-    data = request.get_json()
-    new_hub = Hubs(
-        name=data['name'],
-        description=data['description'],
-        hub_type=data['hub_type'],
-        address_id=data['address_id'],
-        vendor_id=data['vendor_id'],
-        parent_id=data.get('parent_id')
-    )
-    db.session.add(new_hub)
-    db.session.commit()
-    return jsonify({'message': 'Hub added successfully', 'hub': new_hub.to_dict()})
-
-@app.route('/get_All_Hub/',methods=['GET'])
-def get_all_hubs():
-    hubs = Hubs.query.all()
-    return jsonify({'hubs': [hub.to_dict() for hub in hubs]})
-
-@app.route('/get_Hub/<int:hub_id>',methods=['GET'])
-def get_hub(hub_id):
-    hub = Hubs.query.get(hub_id)
-    if hub:
-        return jsonify({'hub': hub.to_dict()})
-    else:
-        return jsonify({'message': 'Hub not found'})
-
-@app.route('/update_Hub/<int:hub_id>', methods=['PUT'])
-def update_hub(hub_id):
-    hub = Hubs.query.get(hub_id)
-    if not hub:
-        return jsonify({'message': 'Hub not found'}), 404
-
-    data = request.get_json()
-    hub.name = data.get('name')
-    hub.description = data.get('description')
-    hub.hub_type = data.get('hub_type')
-    hub.address_id = data.get('address_id')
-    hub.parent_id = data.get('parent_id')
-
-    db.session.commit()
-    return jsonify({'message': 'Hub updated successfully', 'hub': hub.to_dict()})
-
-@app.route('/delete_Hub/<int:hub_id>',methods=['PUT'])
-def delete_hub(hub_id):
-    hub = Hubs.query.get(hub_id)
-    if not hub:
-        return jsonify({'message': 'Hub not found'}), 404
-
-    db.session.delete(hub)
-    db.session.commit()
-    return jsonify({'message': 'Hub deleted successfully'})
-
 class HubProduct(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     hub_id = db.Column(db.Integer, db.ForeignKey('hubs.id'), nullable=False)
@@ -155,9 +340,7 @@ class HubProduct(db.Model):
     stock_quantity = db.Column(db.Integer, nullable=False)
     min_req_quantity = db.Column(db.Integer, nullable=True)
     max_stock_quantity = db.Column(db.Integer, nullable=True)
-    createdAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
-    UpdatedAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    DeletedAt = db.Column(db.DateTime, nullable=True)
+
     def to_dict(self):
         return {
             'id': self.id,
@@ -169,59 +352,7 @@ class HubProduct(db.Model):
             'max_stock_quantity': self.max_stock_quantity
         }
     
-@app.route('/add_Hub_Product', methods=['POST'])
-def add_hub_product():
-    data = request.get_json()
-    new_hub_product = HubProduct(
-        hub_id=data['hub_id'],
-        product_id=data['product_id'],
-        vendor_id=data['vendor_id'],
-        stock_quantity=data['stock_quantity'],
-        min_req_quantity=data.get('min_req_quantity'),
-        max_stock_quantity=data.get('max_stock_quantity')
-    )
-    db.session.add(new_hub_product)
-    db.session.commit()
-    return jsonify({'message': 'Hub product added successfully', 'hub_product': new_hub_product.to_dict()})
-
-@app.route('/update_Hub_Product/<int:hub_product_id>', methods=['PUT'])
-def update_hub_product(hub_product_id):
-    hub_product = HubProduct.query.get(hub_product_id)
-    if not hub_product:
-        return jsonify({'message': 'Hub product not found'}), 404
-
-    data = request.get_json()
-    hub_product.stock_quantity = data.get('stock_quantity')
-    hub_product.min_req_quantity = data.get('min_req_quantity')
-    hub_product.max_stock_quantity = data.get('max_stock_quantity')
-
-    db.session.commit()
-    return jsonify({'message': 'Hub product updated successfully', 'hub_product': hub_product.to_dict()})
-
-@app.route('/delete_Hub_Product/<int:hub_product_id>', methods=['PUT'])
-def delete_hub_product(hub_product_id):
-    hub_product = HubProduct.query.get(hub_product_id)
-    if not hub_product:
-        return jsonify({'message': 'Hub product not found'}), 404
-
-    db.session.delete(hub_product)
-    db.session.commit()
-    return jsonify({'message': 'Hub product deleted successfully'})
-
-@app.route('/get_Hub_Product/<int:hub_product_id>', methods=['GET'])
-def get_hub_product(hub_product_id):
-    hub_product = HubProduct.query.get(hub_product_id)
-    if hub_product:
-        return jsonify({'hub_product': hub_product.to_dict()})
-    else:
-        return jsonify({'message': 'Hub product not found'})
-    
-@app.route('/get_All_Hub_Products/', methods=['GET'])
-def get_all_hub_products():
-    hub_products = HubProduct.query.all()
-    return jsonify({'hub_products': [hub_product.to_dict() for hub_product in hub_products]})
-
-
+#model for moving stock between hubs or purchasing from distributor
 class StockMovement(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
@@ -234,11 +365,8 @@ class StockMovement(db.Model):
     remarks = db.Column(db.String(500), nullable=True)
     status = db.Column(db.String(20), nullable=False, default='inititated')  # 'inititated', 'in_transit', 'delivered', 'cancelled'
     responsible_user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    createdAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
-    UpdatedAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    DeletedAt = db.Column(db.DateTime, nullable=True)
 
-#update the stock quantity in the respective hubs after a stock movement
+    #update the stock quantity in the respective hubs after a stock movement
     def update_stock(self):
         if self.movement_type == 'transfer' and self.status == 'delivered':
             from_hub_product = HubProduct.query.filter_by(hub_id=self.from_hub_id, product_id=self.product_id).first()
@@ -254,7 +382,6 @@ class StockMovement(db.Model):
                 to_hub_product.stock_quantity += self.quantity
                 db.session.commit()
 
-
     def to_dict(self):
         return {
             'id': self.id,
@@ -269,66 +396,7 @@ class StockMovement(db.Model):
             'responsible_user_id': self.responsible_user_id
         }
     
-
-@app.route('/add_Stock_Movement', methods=['POST'])
-def add_stock_movement():
-    data = request.get_json()
-    new_stock_movement = StockMovement(
-        product_id=data['product_id'],
-        from_hub_id=data.get('from_hub_id'),
-        to_hub_id=data.get('to_hub_id'),
-        distributor_id=data.get('distributor_id'),
-        quantity=data['quantity'],
-        movement_type=data['movement_type'],
-        vendor_id=data['vendor_id'],
-        remarks=data.get('remarks'),
-        responsible_user_id=data['responsible_user_id']
-    )
-    db.session.add(new_stock_movement)
-    db.session.commit()
-    return jsonify({'message': 'Stock movement added successfully', 'stock_movement': new_stock_movement.to_dict()})
-    
-@app.route('/update_Stock_Movement/<int:stock_movement_id>', methods=['PUT'])
-def update_stock_movement(stock_movement_id):
-    stock_movement = StockMovement.query.get(stock_movement_id)
-    if not stock_movement:
-        return jsonify({'message': 'Stock movement not found'}), 404
-
-    data = request.get_json()
-    stock_movement.status = data.get('status')
-    stock_movement.remarks = data.get('remarks')
-
-    db.session.commit()
-
-    #update the stock quantity in the respective hubs after a stock movement
-    stock_movement.update_stock()
-
-    return jsonify({'message': 'Stock movement updated successfully', 'stock_movement': stock_movement.to_dict()})
-
-@app.route('/get_all_stock_movement',methods=['GET'])
-def get_all_stock_movement():
-    data=StockMovement.query.all()
-    return jsonify({'stock_movements': [stock_movement.to_dict() for stock_movement in data]})
-
-
-@app.route('/get_by_id',methods=['GET'])
-def get_by_id_allstock_movement(stock_movement_id):
-    data=StockMovement.query.get(stock_movement_id)
-    if not data:
-        return jsonify({'message': 'Stock movement not found'}), 404
-    return jsonify({'stock_movement': data.to_dict()})
-
-@app.route('/delete_Stock_Movement/<int:stock_movement_id>', methods=['PUT'])
-def delete_stock_movement(stock_movement_id):
-    stock_movement = StockMovement.query.get(stock_movement_id)
-    if not stock_movement:
-        return jsonify({'message': 'Stock movement not found'}), 404
-
-    db.session.delete(stock_movement)
-    db.session.commit()
-
-    return jsonify({'message': 'Stock movement deleted successfully'})
-
+#model for tracing the movement of stock between hubs or from distributor to hub
 class StockMovementTrace(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     stock_movement_id = db.Column(db.Integer, db.ForeignKey('stock_movement.id'), nullable=False)
@@ -337,9 +405,6 @@ class StockMovementTrace(db.Model):
     contact_person = db.Column(db.String(100), nullable=True)
     contact_number = db.Column(db.String(20), nullable=True)
     remarks = db.Column(db.String(500), nullable=True)
-    createdAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
-    UpdatedAt = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
-    DeletedAt = db.Column(db.DateTime, nullable=True)
 
     def to_dict(self):
         return {
@@ -351,87 +416,192 @@ class StockMovementTrace(db.Model):
             'contact_number': self.contact_number,
             'remarks': self.remarks
         }
-@app.route('/add_Stock_Movement_Trace',methods=['POST'])
-def add_stock_movement_trace():
-    data = request.get_json()
-    new_stock_movement_trace = StockMovementTrace(
-        stock_movement_id=data['stock_movement_id'],
-        status=data['status'],
-        contact_person=data.get('contact_person'),
-        contact_number=data.get('contact_number'),
-        remarks=data.get('remarks')
-    )
-    db.session.add(new_stock_movement_trace)
-    db.session.commit()
-    return jsonify({'message': 'Stock movement trace added successfully', 'stock_movement_trace': new_stock_movement_trace.to_dict()})
+    
+class DistributorPaymentModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    distributor_id = db.Column(db.Integer, db.ForeignKey('distributor.id'), nullable=False)
+    stock_movement_ids = db.Column(db.String(500), nullable=True)  # Comma-separated IDs
+    amount = db.Column(db.Float, nullable=False)
+    payment_date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    payment_method = db.Column(db.String(50), nullable=False)  # 'bank_transfer', 'credit_card', etc.
+    transaction_id = db.Column(db.String(100), nullable=True)
+    remarks = db.Column(db.String(500), nullable=True)
 
-@app.route('/update_Stock_Movement_Trace/<int:stock')
-def update_stock_movement_trace(stock_movement_trace_id):
-    stock_movement_trace = StockMovementTrace.query.get(stock_movement_trace_id)
-    if not stock_movement_trace:
-        return jsonify({'message': 'Stock movement trace not found'}), 404
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'distributor_id': self.distributor_id,
+            'stock_movement_ids': self.stock_movement_ids,
+            'amount': self.amount,
+            'payment_date': self.payment_date,
+            'payment_method': self.payment_method,
+            'transaction_id': self.transaction_id,
+            'remarks': self.remarks
+        }
+    
+class CartModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
 
-    data = request.get_json()
-    stock_movement_trace.status = data.get('status')
-    stock_movement_trace.contact_person = data.get('contact_person')
-    stock_movement_trace.contact_number = data.get('contact_number')
-    stock_movement_trace.remarks = data.get('remarks')
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity,
+            'vendor_id': self.vendor_id
+        }
+    
+#order and order items model for placing orders from the cart
+class OrderModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    total_amount = db.Column(db.Float, nullable=False)
+    order_date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    delivery_address_id = db.Column(db.Integer, db.ForeignKey('address.id'), nullable=False)
+    hub_id = db.Column(db.Integer, db.ForeignKey('hubs.id'), nullable=True)
+    status = db.Column(db.String(20), nullable=False)  # 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+    delivery_partner_id = db.Column(db.Integer, db.ForeignKey('delivery_partner_model.id'), nullable=True)
 
-    db.session.commit()
-    return jsonify({'message': 'Stock movement trace updated successfully', 'stock_movement_trace': stock_movement_trace.to_dict()})
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'total_amount': self.total_amount,
+            'order_date': self.order_date,
+            'status': self.status,
+            'vendor_id': self.vendor_id,
+            'delivery_partner_id': self.delivery_partner_id if self.delivery_address_id else None
+        }
+    
+class OrderItemModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order_model.id'), nullable=False)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False)
+    price = db.Column(db.Float, nullable=False)
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'product_id': self.product_id,
+            'quantity': self.quantity,
+            'price': self.price
+        }
+    
+class OrderTraceModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order_model.id'), nullable=False)
+    track_url = db.Column(db.String(500), nullable=True)
+    status = db.Column(db.String(20), nullable=False)  # 'pending', 'confirmed', 'shipped', 'delivered', 'cancelled'
+    timestamp = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    remarks = db.Column(db.String(500), nullable=True)
 
-@app.route('/get_Stock_Movement_Trace/<int:stock_movement_id>', methods=['GET'])
-def get_stock_movement_trace(stock_movement_id):
-    traces = StockMovementTrace.query.filter_by(stock_movement_id=stock_movement_id).all()
-    return jsonify({'stock_movement_traces': [trace.to_dict() for trace in traces]})
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'status': self.status,
+            'timestamp': self.timestamp,
+            'remarks': self.remarks
+        }
 
-@app.route('/update_Stock_Movement_Trace/<int:stock_movement_trace_id>', methods=['PUT'])
-def update_stock_movement_trace(stock_movement_trace_id):
-    stock_movement_trace = StockMovementTrace.query.get(stock_movement_trace_id)
-    if not stock_movement_trace:
-        return jsonify({'message': 'Stock movement trace not found'}), 404
+class PaymentModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    order_id = db.Column(db.Integer, db.ForeignKey('order_model.id'), nullable=False)
+    amount = db.Column(db.Float, nullable=False)
+    payment_date = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    payment_method = db.Column(db.String(50), nullable=False)  # 'bank_transfer', 'credit_card', etc.
+    transaction_id = db.Column(db.String(100), nullable=True)
+    remarks = db.Column(db.String(500), nullable=True)
 
-    data = request.get_json()
-    stock_movement_trace.stock_movement_id = data.get('stock_movement_id', stock_movement_trace.stock_movement_id)
-    stock_movement_trace.status = data.get('status', stock_movement_trace.status)
-    stock_movement_trace.contact_person = data.get('contact_person', stock_movement_trace.contact_person)
-    stock_movement_trace.contact_number = data.get('contact_number', stock_movement_trace.contact_number)
-    stock_movement_trace.remarks = data.get('remarks', stock_movement_trace.remarks)
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'order_id': self.order_id,
+            'amount': self.amount,
+            'payment_date': self.payment_date,
+            'payment_method': self.payment_method,
+            'transaction_id': self.transaction_id,
+            'remarks': self.remarks
+        }
 
-    db.session.commit()
-    return jsonify({'message': 'Stock movement trace updated successfully', 'stock_movement_trace': stock_movement_trace.to_dict()})
+class DeliveryPartnerModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    mobile_number = db.Column(db.Integer, unique=True, nullable=False)
+    address_id = db.Column(db.Integer, db.ForeignKey('address.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
+    hub_id = db.Column(db.Integer, db.ForeignKey('hubs.id'), nullable=True)
 
-@app.route('/delete_Stock_Movement_Trace/<int:stock_movement_trace_id>', methods=['DELETE'])
-def delete_stock_movement_trace(stock_movement_trace_id):
-    stock_movement_trace = StockMovementTrace.query.get(stock_movement_trace_id)
-    if not stock_movement_trace:
-        return jsonify({'message': 'Stock movement trace not found'}), 404
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'email': self.email,
+            'mobile_number': self.mobile_number,
+            'address_id': self.address_id,
+            'vendor_id': self.vendor_id
+        }
+    
+class SEOSearchEngineModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    search_engine_name = db.Column(db.String(100), nullable=False)
+    search_engine_url = db.Column(db.String(500), nullable=False)
 
-    db.session.delete(stock_movement_trace)
-    db.session.commit()
+#advanced seo data model for product pages to improve search engine ranking
+class SEORankingModel(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    product_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=False)
+    vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
+    meta_title = db.Column(db.String(150), nullable=True)
+    meta_description = db.Column(db.String(300), nullable=True)
+    meta_keywords = db.Column(db.String(500), nullable=True)
+    canonical_url = db.Column(db.String(500), nullable=True)
+    robots_content = db.Column(db.String(100), nullable=True)  # e.g. 'index,follow'
+    hreflang = db.Column(db.String(100), nullable=True)  # e.g. 'en-US'
+    schema_json = db.Column(db.Text, nullable=True)
+    rich_snippet_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    og_title = db.Column(db.String(150), nullable=True)
+    og_description = db.Column(db.String(300), nullable=True)
+    og_image = db.Column(db.String(500), nullable=True)
+    twitter_title = db.Column(db.String(150), nullable=True)
+    twitter_description = db.Column(db.String(300), nullable=True)
+    twitter_image = db.Column(db.String(500), nullable=True)
+    page_load_time_ms = db.Column(db.Integer, nullable=True)
+    readability_score = db.Column(db.Float, nullable=True)
+    seo_score = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
+    updated_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-    return jsonify({'message': 'Stock movement trace deleted successfully'})
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-if __name__ == '__main__':
-    with app.app_content():
-        db.create_all()
-    app.run(debug=True)
-
-
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'product_id': self.product_id,
+            'vendor_id': self.vendor_id,
+            'meta_title': self.meta_title,
+            'meta_description': self.meta_description,
+            'meta_keywords': self.meta_keywords,
+            'canonical_url': self.canonical_url,
+            'robots_content': self.robots_content,
+            'hreflang': self.hreflang,
+            'schema_json': self.schema_json,
+            'rich_snippet_enabled': self.rich_snippet_enabled,
+            'og_title': self.og_title,
+            'og_description': self.og_description,
+            'og_image': self.og_image,
+            'twitter_title': self.twitter_title,
+            'twitter_description': self.twitter_description,
+            'twitter_image': self.twitter_image,
+            'page_load_time_ms': self.page_load_time_ms,
+            'readability_score': self.readability_score,
+            'seo_score': self.seo_score,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }

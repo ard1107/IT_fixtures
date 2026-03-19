@@ -1,34 +1,20 @@
-from flask import Flask,request,jsonify
-from models import db,init_db
-from routes.Users import Users_blueprint
-from routes.Vendors import Vendors_blueprint
-from routes.Address import Address_blueprint
-from routes.MediaFiles import MediaFiles_blueprint
-from routes.Product import Product_blueprint
+from flask import Flask
+from extension import db
+
+from routes.distributor import Distributor_bp
+from routes.order import OrderModel_bp
+from routes.payment import PaymentModel_bp
 
 app = Flask(__name__)
 
-app.config['SQLALCHEMY_DATABASE_URI'] ="mysql+pymysql://root:Mysql123@localhost/IT_fixtures"
-init_db(app)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:root123@localhost/it_fixtures'
+db.init_app(app)
 
-app.register_blueprint(Users_blueprint)
+app.register_blueprint(Distributor_bp)
+app.register_blueprint(OrderModel_bp)
+app.register_blueprint(PaymentModel_bp)
 
-app.register_blueprint(Vendors_blueprint)
-   
-app.register_blueprint(Address_blueprint)      
-
-
-app.register_blueprint(MediaFiles_blueprint)
-
-
-app.register_blueprint(Product_blueprint)    
-
-
-@app.route("/")
-def home():
-    return "Welcome Ecommerce"
-  
-if __name__ == "__main__":
+if __name__=="__main__":
     with app.app_context():
         db.create_all()
-    app.run(port=8000,debug=False)
+    app.run(debug=True)
