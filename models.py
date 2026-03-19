@@ -6,12 +6,19 @@ def init_db(app):
     with app.app_context():
         db.create_all()
 
+from flask import Flask
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:1712ad@localhost/it_fixtures'
+db = SQLAlchemy(app) 
+
 class Users(db.Model):
-    __tablename__ = 'users'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    mobile_number = db.Column(db.String(20), unique=True, nullable=False)
+    mobile_number = db.Column(db.Integer, unique=True, nullable=False)
     password = db.Column(db.String(120), nullable=True)
     role = db.Column(db.String(20), nullable=False)
     status = db.Column(db.String(20), nullable=False)
@@ -23,15 +30,13 @@ class Users(db.Model):
             'name': self.name,
             'email': self.email,
             'mobileNumber': self.mobile_number,
-            'password': self.password,
-            'role': self.role, 
+            'role': self.role,
             'status': self.status,
             'vendorId': self.vendorId
         }
     
 
 class Vendors(db.Model):
-    __tablename__ = 'vendors'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     business_name = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -39,7 +44,7 @@ class Vendors(db.Model):
     address_id = db.Column(db.Integer, db.ForeignKey('address.id'), nullable=False)
 
 
-    def to_dict_ven(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'business_name': self.business_name,
@@ -47,9 +52,8 @@ class Vendors(db.Model):
             'mobileNumber': self.mobile_number,
             'address': self.address
         }
-
+    
 class Address(db.Model):
-    __tablename__ = 'address'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
@@ -62,9 +66,9 @@ class Address(db.Model):
     postal_code = db.Column(db.String(20), nullable=False)
     country = db.Column(db.String(100), nullable=False)
     lat_lang = db.Column(db.String(100), nullable=True)
-    google_map_address = db.Column(db.String(255), nullable=True)
+    google_map_address = db.Column(db.String, nullable=True)
 
-    def to_dict_add(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -82,7 +86,6 @@ class Address(db.Model):
         }
     
 class MediaFiles(db.Model):
-    __tablename__ = 'mediafiles'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=True)
@@ -94,7 +97,7 @@ class MediaFiles(db.Model):
     entity_type = db.Column(db.String(50), nullable=False)
     entity_id = db.Column(db.Integer, nullable=False)
 
-    def to_dict_med(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'user_id': self.user_id,
@@ -107,9 +110,8 @@ class MediaFiles(db.Model):
             'entity_type': self.entity_type,
             'entity_id': self.entity_id
         }
-    
+
 class Product(db.Model):
-    __tablename__ = 'product'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     parent_id = db.Column(db.Integer, db.ForeignKey('product.id'), nullable=True)
     name = db.Column(db.String(100), nullable=False)
@@ -117,11 +119,11 @@ class Product(db.Model):
     price = db.Column(db.Float, nullable=False)
     sku_id = db.Column(db.String(100), unique=True, nullable=False)
     barcode = db.Column(db.String(100), unique=True, nullable=True)
-    #brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
+    brand_id = db.Column(db.Integer, db.ForeignKey('brands.id'), nullable=True)
     vendor_id = db.Column(db.Integer, db.ForeignKey('vendors.id'), nullable=False)
     product_type = db.Column(db.String(50), nullable=False)  # 'simple', 'variant', 'bundle'
 
-    def to_dict_pro(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'parent_id': self.parent_id,
@@ -131,10 +133,12 @@ class Product(db.Model):
             'barcode': self.barcode,
             'price': self.price,
             'vendor_id': self.vendor_id,
-            #'brand_id': self.brand_id,
+            'brand_id': self.brand_id,
             'product_type': self.product_type
         }
-    
+
+
+
 class PriceType(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(100), nullable=False)
@@ -256,6 +260,7 @@ class ProductCategory(db.Model):
             'product_id': self.product_id,
             'category_id': self.category_id
         }
+    
 class Distributor(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     name = db.Column(db.String(100), nullable=False)
@@ -332,6 +337,7 @@ class Hubs(db.Model):
             'hub_type': self.hub_type,
             'parent_id': self.parent_id if self.parent_id else None
         }
+    
 class HubProduct(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     hub_id = db.Column(db.Integer, db.ForeignKey('hubs.id'), nullable=False)
@@ -371,7 +377,8 @@ class StockMovement(db.Model):
         if self.movement_type == 'transfer' and self.status == 'delivered':
             from_hub_product = HubProduct.query.filter_by(hub_id=self.from_hub_id, product_id=self.product_id).first()
             to_hub_product = HubProduct.query.filter_by(hub_id=self.to_hub_id, product_id=self.product_id).first()
-        if from_hub_product and to_hub_product:
+
+            if from_hub_product and to_hub_product:
                 from_hub_product.stock_quantity -= self.quantity
                 to_hub_product.stock_quantity += self.quantity
                 db.session.commit()
@@ -380,8 +387,9 @@ class StockMovement(db.Model):
             if to_hub_product:
                 to_hub_product.stock_quantity += self.quantity
                 db.session.commit()
-                def to_dict(self):
-                 return {
+
+    def to_dict(self):
+        return {
             'id': self.id,
             'product_id': self.product_id,
             'from_hub_id': self.from_hub_id,
@@ -562,8 +570,8 @@ class SEORankingModel(db.Model):
     meta_description = db.Column(db.String(300), nullable=True)
     meta_keywords = db.Column(db.String(500), nullable=True)
     canonical_url = db.Column(db.String(500), nullable=True)
-    robots_content = db.Column(db.String(100), nullable=True)  
-    hreflang = db.Column(db.String(100), nullable=True)  
+    robots_content = db.Column(db.String(100), nullable=True)  # e.g. 'index,follow'
+    hreflang = db.Column(db.String(100), nullable=True)  # e.g. 'en-US'
     schema_json = db.Column(db.Text, nullable=True)
     rich_snippet_enabled = db.Column(db.Boolean, nullable=False, default=False)
     og_title = db.Column(db.String(150), nullable=True)
@@ -578,7 +586,7 @@ class SEORankingModel(db.Model):
     created_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp())
     updated_at = db.Column(db.DateTime, nullable=False, default=db.func.current_timestamp(), onupdate=db.func.current_timestamp())
 
-def to_dict(self):
+    def to_dict(self):
         return {
             'id': self.id,
             'product_id': self.product_id,
